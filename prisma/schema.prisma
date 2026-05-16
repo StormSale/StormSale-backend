@@ -1,0 +1,39 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String     @id @default(uuid())
+  walletAddress String     @unique
+  role          String     @default("AFFILIATE") // ADVERTISER, AFFILIATE, AUDITOR
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  campaigns     Campaign[] // Campaigns created by Advertiser
+}
+
+model Campaign {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  tags        String   // Comma separated tags
+  onChainId   String   @unique // The ID in the Smart Contract
+  advertiserId String
+  advertiser  User     @relation(fields: [advertiserId], references: [id])
+  clicks      Click[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Click {
+  id         String   @id @default(uuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  affiliateWallet String // The wallet address of the affiliate who shared the link
+  ipHash     String   // Hashed IP for uniqueness tracking without storing PII
+  createdAt  DateTime @default(now())
+}
