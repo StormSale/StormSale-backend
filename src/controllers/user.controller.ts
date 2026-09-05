@@ -5,7 +5,7 @@ import { z } from 'zod';
 const userService = new UserService();
 
 const registerSchema = z.object({
-  walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, "Invalid EVM wallet address"),
+  walletAddress: z.string().regex(/^G[A-Z2-7]{55}$/, "Invalid Stellar wallet address (must start with G)"),
   role: z.enum(["ADVERTISER", "AFFILIATE", "AUDITOR"]).optional()
 });
 

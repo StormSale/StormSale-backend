@@ -9,7 +9,7 @@ const createCampaignSchema = z.object({
   description: z.string().min(10),
   tags: z.string(),
   onChainId: z.string(),
-  advertiserWallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/, "Invalid EVM wallet address")
+  advertiserWallet: z.string().regex(/^[GC][A-Z2-7]{55}$/, "Invalid Stellar account or contract address")
 });
 
 export class CampaignController {

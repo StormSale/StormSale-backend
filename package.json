@@ -10,10 +10,10 @@
     "lint:fix": "eslint . --fix",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "keywords": ["stellar", "soroban", "affiliate", "privacy", "web3"],
+  "author": "Jibril Raji Qasim (AJDEV)",
+  "license": "MIT",
+  "description": "High-performance backend service for the StormSale decentralized affiliate protocol on Stellar",
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "cors": "^2.8.6",
