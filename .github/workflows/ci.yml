@@ -28,6 +28,8 @@ jobs:
       run: npx prisma generate
 
     - name: Run Tests
+      env:
+        NODE_ENV: test
       run: npm test
 
     - name: Build TypeScript
