@@ -15,25 +15,25 @@
   "license": "MIT",
   "description": "High-performance backend service for the StormSale decentralized affiliate protocol on Stellar",
   "dependencies": {
-    "@prisma/client": "^6.19.3",
+    "@prisma/client": "^7.10.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "zod": "^4.4.3"
+    "zod": "^4.6.2"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/cors": "^2.8.19",
-    "@types/eslint__js": "^8.42.3",
+    "@types/eslint__js": "^9.14.0",
     "@types/express": "^5.0.6",
-    "@types/node": "^25.8.0",
-    "eslint": "^10.4.0",
-    "globals": "^17.6.0",
+    "@types/node": "^26.5.1",
+    "eslint": "^10.10.0",
+    "globals": "^17.12.0",
     "nodemon": "^3.1.14",
-    "prisma": "^6.19.3",
+    "prisma": "^7.10.0",
     "sqlite3": "^6.0.1",
     "ts-node": "^10.9.2",
-    "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.3"
+    "typescript": "^7.0.2",
+    "typescript-eslint": "^8.70.0"
   }
 }
