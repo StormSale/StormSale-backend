@@ -24,14 +24,13 @@ jobs:
     - name: Install Dependencies
       run: npm install
 
-    - name: Generate Prisma Client
-      run: npx prisma generate
+    - name: Run Linter
+      run: npm run lint
 
-    - name: Run Tests
+    - name: Run Integration Tests
       env:
         NODE_ENV: test
       run: npm test
 
-    - name: Build TypeScript
+    - name: Build Production Assets
       run: npm run build
-

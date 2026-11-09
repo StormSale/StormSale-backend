@@ -43,8 +43,8 @@ export class ShortLinkService {
       return null;
     }
 
-    // Increment clicks count
-    const updated = await prisma.shortLink.update({
+    // Increment clicks count in database
+    await prisma.shortLink.update({
       where: { slug: link.slug },
       data: { clicksCount: { increment: 1 } }
     });
@@ -61,7 +61,10 @@ export class ShortLinkService {
       });
     }
 
-    return updated;
+    return {
+      ...link,
+      clicksCount: link.clicksCount + 1,
+    };
   }
 
   async getAffiliateLinks(affiliateWallet: string) {
@@ -70,4 +73,3 @@ export class ShortLinkService {
     });
   }
 }
-
