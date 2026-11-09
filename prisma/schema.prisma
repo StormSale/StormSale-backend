@@ -7,6 +7,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum AudienceType {
+  B2B
+  B2C
+}
+
+enum OrgRole {
+  ADMIN
+  MARKETING_MANAGER
+  EDITOR
+  FINANCE
+  VIEWER
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
 model User {
   id            String     @id @default(uuid())
   walletAddress String     @unique
@@ -16,24 +36,124 @@ model User {
   campaigns     Campaign[] // Campaigns created by Advertiser
 }
 
+model Organization {
+  id           String            @id @default(uuid())
+  name         String
+  ownerAddress String
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  members      TeamMember[]
+  campaigns    Campaign[]
+  webhooks     WebhookEndpoint[]
+}
+
+model TeamMember {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  walletAddress  String
+  name           String
+  role           OrgRole      @default(VIEWER)
+  addedBy        String
+  status         String       @default("verified") // verified | pending
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, walletAddress])
+}
+
 model Campaign {
-  id          String   @id @default(uuid())
-  title       String
-  description String
-  tags        String   // Comma separated tags
-  onChainId   String   @unique // The ID in the Smart Contract
-  advertiserId String
-  advertiser  User     @relation(fields: [advertiserId], references: [id])
-  clicks      Click[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String          @id @default(uuid())
+  title          String
+  description    String
+  tags           String          // Comma separated tags
+  onChainId      String          @unique // The ID in the Smart Contract
+  audience       AudienceType    @default(B2C)
+  budget         Float           @default(0.0)
+  currency       String          @default("XLM")
+  commissionRate Float           @default(10.0)
+  clearingPeriod Int             @default(86400) // Clearing escrow duration in seconds
+  advertiserId   String
+  advertiser     User            @relation(fields: [advertiserId], references: [id])
+  organizationId String?
+  organization   Organization?   @relation(fields: [organizationId], references: [id])
+  clicks         Click[]
+  shortLinks     ShortLink[]
+  fraudRecords   FraudRecord[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 }
 
 model Click {
-  id         String   @id @default(uuid())
-  campaignId String
-  campaign   Campaign @relation(fields: [campaignId], references: [id])
-  affiliateWallet String // The wallet address of the affiliate who shared the link
-  ipHash     String   // Hashed IP for uniqueness tracking without storing PII
-  createdAt  DateTime @default(now())
+  id              String   @id @default(uuid())
+  campaignId      String
+  campaign        Campaign @relation(fields: [campaignId], references: [id])
+  affiliateWallet String   // The wallet address of the affiliate who shared the link
+  ipHash          String   // Hashed IP for uniqueness tracking without storing PII
+  subId           String?  // Optional sub-campaign / traffic source
+  createdAt       DateTime @default(now())
+}
+
+model ReferralRelation {
+  id                          String   @id @default(uuid())
+  recruiterAddress            String
+  childAddress                String   @unique
+  tier                        Int      @default(1) // 1 = direct recruit, 2 = second-tier
+  overrideRatePercent         Float    @default(2.0)
+  directCommissionRatePercent Float    @default(8.0)
+  status                      String   @default("active") // active | paused
+  salesVolumeXlm              Float    @default(0.0)
+  overrideEarnedXlm           Float    @default(0.0)
+  salesCount                  Int      @default(0)
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  @@index([recruiterAddress])
+}
+
+model FraudRecord {
+  id               String    @id @default(uuid())
+  campaignId       String
+  campaign         Campaign  @relation(fields: [campaignId], references: [id])
+  affiliateAddress String
+  riskLevel        RiskLevel @default(LOW)
+  velocityZScore   Float     @default(0.0)
+  isAnomaly        Boolean   @default(false)
+  isPaused         Boolean   @default(false)
+  reason           String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([affiliateAddress])
+}
+
+model ShortLink {
+  id              String   @id @default(uuid())
+  slug            String   @unique
+  targetUrl       String
+  campaignId      String
+  campaign        Campaign @relation(fields: [campaignId], references: [id])
+  affiliateWallet String
+  clicksCount     Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([affiliateWallet])
+}
+
+model WebhookEndpoint {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  url            String
+  secret         String
+  events         String       // Comma separated event types
+  isActive       Boolean      @default(true)
+  failureCount   Int          @default(0)
+  totalDeliveries Int         @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
 }
