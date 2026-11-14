@@ -1,5 +1,6 @@
 import assert from "assert";
 import { z } from "zod";
+import { runOperatorDelegationTests } from "./tests/operator-delegation.test";
 
 const stellarWalletSchema = z.string().regex(/^G[A-Z2-7]{55}$/, "Invalid Stellar wallet address");
 const stellarAccountOrContractSchema = z.string().regex(/^[GC][A-Z2-7]{55}$/, "Invalid Stellar account or contract address");
@@ -24,4 +25,9 @@ assert.strictEqual(stellarAccountOrContractSchema.safeParse(validC).success, tru
 assert.strictEqual(stellarAccountOrContractSchema.safeParse(validG).success, true, "Wallet G-address should pass advertiser validation");
 
 console.log("✔ All StormSale backend validation tests passed successfully!");
+
+runOperatorDelegationTests().catch((err) => {
+  console.error("❌ Operator delegation tests failed:", err);
+  process.exit(1);
+});
 

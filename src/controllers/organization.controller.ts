@@ -13,7 +13,8 @@ const addMemberSchema = z.object({
   walletAddress: z.string().regex(/^G[A-Z2-7]{55}$/, "Invalid Stellar member address"),
   name: z.string().min(1, "Member name is required"),
   role: z.enum(["ADMIN", "MARKETING_MANAGER", "EDITOR", "FINANCE", "VIEWER"]),
-  addedBy: z.string().regex(/^G[A-Z2-7]{55}$/, "Invalid Stellar inviter address")
+  addedBy: z.string().regex(/^G[A-Z2-7]{55}$/, "Invalid Stellar inviter address"),
+  status: z.enum(["verified", "pending"]).optional()
 });
 
 export class OrganizationController {
@@ -91,6 +92,22 @@ export class OrganizationController {
       res.status(200).json({ success: true, removedMemberId: memberId });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  }
+
+  async getOperatorAuditLogs(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const org = await organizationService.getOrganization(id as string);
+      if (!org) {
+        res.status(404).json({ error: 'Organization not found' });
+        return;
+      }
+      const logs = organizationService.getOperatorAuditLogs(id as string);
+      res.status(200).json({ organizationId: id, auditLogs: logs });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unexpected error';
+      res.status(500).json({ error: message });
     }
   }
 }
