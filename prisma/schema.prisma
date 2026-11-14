@@ -112,17 +112,21 @@ model ReferralRelation {
 }
 
 model FraudRecord {
-  id               String    @id @default(uuid())
-  campaignId       String
-  campaign         Campaign  @relation(fields: [campaignId], references: [id])
-  affiliateAddress String
-  riskLevel        RiskLevel @default(LOW)
-  velocityZScore   Float     @default(0.0)
-  isAnomaly        Boolean   @default(false)
-  isPaused         Boolean   @default(false)
-  reason           String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id                 String    @id @default(uuid())
+  campaignId         String
+  campaign           Campaign  @relation(fields: [campaignId], references: [id])
+  affiliateAddress   String
+  ipHash             String?
+  riskLevel          RiskLevel @default(LOW)
+  velocityZScore     Float     @default(0.0)
+  topIpConcentration Float     @default(0.0)
+  ipGiniCoefficient  Float     @default(0.0)
+  ipEntropy          Float     @default(1.0)
+  isAnomaly          Boolean   @default(false)
+  isPaused           Boolean   @default(false)
+  reason             String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   @@index([affiliateAddress])
 }
