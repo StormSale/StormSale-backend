@@ -399,6 +399,144 @@ async function runApiIntegrationTests() {
       assert.strictEqual(data.isPaused, true);
     });
 
+    const concentrationLowSampleWallet = 'G' + 'A'.repeat(55);
+    const concentrationHighRiskWallet = 'G' + 'B'.repeat(55);
+    const concentrationCriticalWallet = 'G' + 'C'.repeat(55);
+    const concentrationOrganicWallet = 'G' + 'D'.repeat(55);
+
+    await test('POST /api/fraud/eval ignores IP concentration on low sample sizes (<= 3 conversions)', async () => {
+      const now = Date.now();
+      for (let i = 0; i < 3; i++) {
+        const res = await fetch(`${baseUrl}/api/fraud/eval`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            campaignId: createdCampaignId,
+            affiliateAddress: concentrationLowSampleWallet,
+            clickTimestamp: new Date(now - 60000).toISOString(),
+            conversionTimestamp: new Date(now).toISOString(),
+            ipHash: 'same_ip_hash_low_sample_01',
+            velocityPerMinute: 1.5,
+            campaignMeanVelocity: 2.0,
+            campaignStdDev: 1.0,
+          }),
+        });
+        assert.strictEqual(res.status, 200);
+        const data = await res.json();
+        assert.strictEqual(data.riskLevel, 'LOW');
+        assert.strictEqual(data.isAnomaly, false);
+      }
+    });
+
+    await test('POST /api/fraud/eval keeps distributed organic IP hashes at LOW risk across > 5 conversions', async () => {
+      const now = Date.now();
+      for (let i = 0; i < 6; i++) {
+        const res = await fetch(`${baseUrl}/api/fraud/eval`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            campaignId: createdCampaignId,
+            affiliateAddress: concentrationOrganicWallet,
+            clickTimestamp: new Date(now - 45000).toISOString(),
+            conversionTimestamp: new Date(now).toISOString(),
+            ipHash: `organic_distinct_ip_${i}_hash`,
+            velocityPerMinute: 1.8,
+            campaignMeanVelocity: 2.0,
+            campaignStdDev: 1.0,
+          }),
+        });
+        assert.strictEqual(res.status, 200);
+        const data = await res.json();
+        assert.strictEqual(data.riskLevel, 'LOW');
+        assert.strictEqual(data.isAnomaly, false);
+        if (i === 5) {
+          assert.strictEqual(data.ipGiniCoefficient, 0);
+          assert.strictEqual(data.ipEntropy, 1);
+          assert.strictEqual(data.topIpConcentration, 16.67);
+        }
+      }
+    });
+
+    await test('POST /api/fraud/eval elevates > 50% IP concentration across > 5 conversions to HIGH risk', async () => {
+      const now = Date.now();
+      // 4 conversions from same IP + 2 from distinct IPs = 6 conversions (66.67% top IP concentration)
+      const ipSequence = [
+        'proxy_ip_alpha_hash',
+        'proxy_ip_alpha_hash',
+        'unique_visitor_ip_1',
+        'proxy_ip_alpha_hash',
+        'unique_visitor_ip_2',
+        'proxy_ip_alpha_hash',
+      ];
+
+      let finalRecord: Record<string, unknown> = {};
+      for (const ipHash of ipSequence) {
+        const res = await fetch(`${baseUrl}/api/fraud/eval`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            campaignId: createdCampaignId,
+            affiliateAddress: concentrationHighRiskWallet,
+            clickTimestamp: new Date(now - 30000).toISOString(),
+            conversionTimestamp: new Date(now).toISOString(),
+            ipHash,
+            velocityPerMinute: 1.9,
+            campaignMeanVelocity: 2.0,
+            campaignStdDev: 1.0,
+          }),
+        });
+        assert.strictEqual(res.status, 200);
+        finalRecord = (await res.json()) as Record<string, unknown>;
+      }
+
+      assert.strictEqual(finalRecord.riskLevel, 'HIGH');
+      assert.strictEqual(finalRecord.isAnomaly, true);
+      assert.strictEqual(finalRecord.topIpConcentration, 66.67);
+      assert.ok(Number(finalRecord.ipGiniCoefficient) > 0.5, 'Gini coefficient should reflect inequality');
+      assert.ok(Number(finalRecord.ipEntropy) < 0.7, 'Normalized Shannon entropy should drop under concentration');
+    });
+
+    await test('POST /api/fraud/eval elevates >= 80% IP concentration across > 5 conversions to CRITICAL and persists topIpConcentration in profile', async () => {
+      const now = Date.now();
+      // 5 conversions from single IP + 1 distinct = 6 conversions (83.33% top IP concentration -> CRITICAL)
+      const ipSequence = [
+        'self_purchase_ip_hash_99',
+        'self_purchase_ip_hash_99',
+        'self_purchase_ip_hash_99',
+        'self_purchase_ip_hash_99',
+        'distinct_customer_ip_01',
+        'self_purchase_ip_hash_99',
+      ];
+
+      for (const ipHash of ipSequence) {
+        const res = await fetch(`${baseUrl}/api/fraud/eval`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            campaignId: createdCampaignId,
+            affiliateAddress: concentrationCriticalWallet,
+            clickTimestamp: new Date(now - 30000).toISOString(),
+            conversionTimestamp: new Date(now).toISOString(),
+            ipHash,
+            velocityPerMinute: 1.5,
+            campaignMeanVelocity: 2.0,
+            campaignStdDev: 1.0,
+          }),
+        });
+        assert.strictEqual(res.status, 200);
+      }
+
+      const profileRes = await fetch(`${baseUrl}/api/fraud/affiliate/${concentrationCriticalWallet}`);
+      assert.strictEqual(profileRes.status, 200);
+      const profile = await profileRes.json();
+      assert.strictEqual(profile.currentRiskLevel, 'CRITICAL');
+      assert.strictEqual(profile.isPaused, true);
+      assert.strictEqual(profile.topIpConcentration, 83.33);
+      assert.strictEqual(profile.uniqueIpCount, 2);
+      assert.ok(profile.ipGiniCoefficient >= 0.8, 'Gini coefficient should be >= 0.8 for 83.33% concentration');
+      assert.strictEqual(profile.latestRecord.topIpConcentration, 83.33);
+    });
+
     // ----------------------------------------------------
     // 8. Tracked Short Links
     // ----------------------------------------------------
